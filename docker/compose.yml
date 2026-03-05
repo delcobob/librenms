@@ -1,0 +1,270 @@
+###############################################################################
+# LibreNMS Docker Compose - Production Deployment
+# Target: Ubuntu 24.04 LTS
+#
+# Usage:
+#   1. Copy .env.example to .env and edit values
+#   2. docker compose up -d
+#   3. Open http://<your-server-ip>:8000
+###############################################################################
+
+services:
+
+  # ==========================================================================
+  # Database - MySQL 8.0
+  # ==========================================================================
+  db:
+    image: mysql:8.0
+    container_name: librenms_db
+    command:
+      - "mysqld"
+      - "--innodb-file-per-table=1"
+      - "--lower-case-table-names=0"
+      - "--character-set-server=utf8mb4"
+      - "--collation-server=utf8mb4_unicode_ci"
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-librenms}"
+      MYSQL_USER: "${MYSQL_USER:-librenms}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+      TZ: "${TZ:-America/New_York}"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # Redis - Caching & Locking (required for distributed polling)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: librenms_redis
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-America/New_York}"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # RRDcached - Improves disk I/O for RRD files
+  # ==========================================================================
+  rrdcached:
+    image: crazymax/rrdcached:latest
+    container_name: librenms_rrdcached
+    restart: unless-stopped
+    volumes:
+      - rrd_data:/data/db
+      - rrd_journal:/data/journal
+    environment:
+      LOG_LEVEL: "LOG_INFO"
+      WRITE_TIMEOUT: "1800"
+      WRITE_JITTER: "1800"
+      WRITE_THREADS: "4"
+      FLUSH_DEAD_DATA_INTERVAL: "3600"
+      TZ: "${TZ:-America/New_York}"
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # LibreNMS - Web Frontend
+  # ==========================================================================
+  librenms:
+    image: librenms/librenms:latest
+    container_name: librenms
+    hostname: librenms
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rrdcached:
+        condition: service_started
+    ports:
+      - "${LIBRENMS_HTTP_PORT:-8000}:8000"
+    volumes:
+      - librenms_data:/data
+      - rrd_data:/data/rrd
+    env_file:
+      - ./librenms.env
+    environment:
+      # -- Core Settings --
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_NAME: "${MYSQL_DATABASE:-librenms}"
+      DB_USER: "${MYSQL_USER:-librenms}"
+      DB_PASSWORD: "${MYSQL_PASSWORD}"
+      DB_TIMEOUT: "60"
+      # -- Redis --
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      # -- RRDcached --
+      RRDCACHED_SERVER: "rrdcached:42217"
+      # -- Timezone --
+      TZ: "${TZ:-America/New_York}"
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # LibreNMS Dispatcher - Background Polling Workers
+  # ==========================================================================
+  dispatcher:
+    image: librenms/librenms:latest
+    container_name: librenms_dispatcher
+    hostname: librenms-dispatcher
+    restart: unless-stopped
+    depends_on:
+      librenms:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - librenms_data:/data
+      - rrd_data:/data/rrd
+    env_file:
+      - ./librenms.env
+    environment:
+      # -- Core Settings --
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_NAME: "${MYSQL_DATABASE:-librenms}"
+      DB_USER: "${MYSQL_USER:-librenms}"
+      DB_PASSWORD: "${MYSQL_PASSWORD}"
+      DB_TIMEOUT: "60"
+      # -- Redis --
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      # -- RRDcached --
+      RRDCACHED_SERVER: "rrdcached:42217"
+      # -- Dispatcher Mode --
+      DISPATCHER_NODE_ID: "dispatcher1"
+      SIDECAR_DISPATCHER: "1"
+      # -- Timezone --
+      TZ: "${TZ:-America/New_York}"
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # LibreNMS Syslog-ng - Receive syslog from network devices
+  # ==========================================================================
+  syslogng:
+    image: librenms/librenms:latest
+    container_name: librenms_syslogng
+    hostname: librenms-syslogng
+    restart: unless-stopped
+    depends_on:
+      librenms:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    ports:
+      - "${SYSLOG_UDP_PORT:-514}:514/udp"
+      - "${SYSLOG_TCP_PORT:-514}:514/tcp"
+    volumes:
+      - librenms_data:/data
+      - rrd_data:/data/rrd
+    env_file:
+      - ./librenms.env
+    environment:
+      # -- Core Settings --
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_NAME: "${MYSQL_DATABASE:-librenms}"
+      DB_USER: "${MYSQL_USER:-librenms}"
+      DB_PASSWORD: "${MYSQL_PASSWORD}"
+      DB_TIMEOUT: "60"
+      # -- Redis --
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      # -- Syslog Mode --
+      SIDECAR_SYSLOGNG: "1"
+      # -- Timezone --
+      TZ: "${TZ:-America/New_York}"
+    networks:
+      - librenms
+
+  # ==========================================================================
+  # LibreNMS SNMP Trap Receiver
+  # ==========================================================================
+  snmptrapd:
+    image: librenms/librenms:latest
+    container_name: librenms_snmptrapd
+    hostname: librenms-snmptrapd
+    restart: unless-stopped
+    depends_on:
+      librenms:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    ports:
+      - "${SNMPTRAP_PORT:-162}:162/udp"
+      - "${SNMPTRAP_PORT:-162}:162/tcp"
+    volumes:
+      - librenms_data:/data
+      - rrd_data:/data/rrd
+    env_file:
+      - ./librenms.env
+    environment:
+      # -- Core Settings --
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_NAME: "${MYSQL_DATABASE:-librenms}"
+      DB_USER: "${MYSQL_USER:-librenms}"
+      DB_PASSWORD: "${MYSQL_PASSWORD}"
+      DB_TIMEOUT: "60"
+      # -- Redis --
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      # -- SNMP Trap Mode --
+      SIDECAR_SNMPTRAPD: "1"
+      # -- Timezone --
+      TZ: "${TZ:-America/New_York}"
+    networks:
+      - librenms
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
+volumes:
+  db_data:
+    driver: local
+  librenms_data:
+    driver: local
+  rrd_data:
+    driver: local
+  rrd_journal:
+    driver: local
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  librenms:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
