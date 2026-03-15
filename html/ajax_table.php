@@ -40,7 +40,7 @@ $searchPhrase = $_REQUEST['searchPhrase'];
 $id = basename((string) $_REQUEST['id']);
 $response = [];
 
-if ($id && file_exists("includes/html/table/$id.inc.php")) {
+if ($id && preg_match('/^[a-zA-Z0-9_-]+$/', $id) && file_exists("includes/html/table/$id.inc.php")) {
     header('Content-type: application/json');
     include_once "includes/html/table/$id.inc.php";
 }

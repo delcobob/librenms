@@ -149,10 +149,18 @@ class IRCBot
         }
 
         foreach ($this->config['irc_external'] as $ext) {
+            if (! preg_match('/^[a-zA-Z0-9_-]+$/', $ext)) {
+                $this->log("Command $ext has invalid name, skipping.");
+
+                continue;
+            }
+
+            $file = 'includes/ircbot/' . $ext . '.inc.php';
             $this->log("Command $ext...");
-            if (($this->external[$ext] = file_get_contents('includes/ircbot/' . $ext . '.inc.php')) == '') {
+            if (is_file($file)) {
+                $this->external[$ext] = $file;
+            } else {
                 $this->log('failed!');
-                unset($this->external[$ext]);
             }
         }
 
@@ -481,11 +489,11 @@ class IRCBot
             $this->log($command . " ( '" . $params . "' )");
 
             return $this->{'_' . $command}($params);
-        } elseif ($this->external[$command]) {
+        } elseif (isset($this->external[$command]) && $this->external[$command]) {
             $this->chkdb();
             $this->log($command . " ( '" . $params . "' ) [Ext]");
 
-            return eval($this->external[$command]);
+            return include $this->external[$command];
         }
 
         return false;

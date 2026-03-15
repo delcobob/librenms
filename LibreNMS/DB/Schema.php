@@ -149,7 +149,7 @@ class Schema
         $db_version = Version::get()->databaseMigrationCount();
 
         if (is_file($cache_file)) {
-            $cache = unserialize(file_get_contents($cache_file));
+            $cache = unserialize(file_get_contents($cache_file), ['allowed_classes' => false]);
             if ($cache['version'] == $db_version) {
                 $update_cache = false;  // cache is valid skip update
             }
