@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Table;
 
 use App\Models\Device;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use LibreNMS\Util\Url;
 
 class VlanDevicesController extends TableController
@@ -26,7 +25,7 @@ class VlanDevicesController extends TableController
     protected function baseQuery(Request $request)
     {
         $this->validate($request, ['vlan' => 'integer']);
-        $this->vlanId = $request->input('vlan', 1);
+        $this->vlanId = (int) $request->input('vlan', 1);
 
         return Device::distinct()
             ->hasAccess($request->user())
@@ -47,7 +46,7 @@ class VlanDevicesController extends TableController
             })
         ->leftJoin('vlans', function ($join): void {
             $join->on('devices.device_id', '=', 'vlans.device_id')
-            ->on('vlans.vlan_vlan', '=', DB::raw($this->vlanId));
+            ->where('vlans.vlan_vlan', '=', $this->vlanId);
         });
     }
 

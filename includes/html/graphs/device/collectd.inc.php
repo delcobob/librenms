@@ -148,11 +148,15 @@ if (is_null($plugin)) {
     return error400($host . '/?-?/?', 'Plugin name must be a string');
 } elseif (strlen($plugin) == 0) {
     return error400($host . '/?-?/?', 'Plugin name may not be blank');
+} elseif (! preg_match(REGEXP_PLUGIN, $plugin)) {
+    return error400($host . '/?-?/?', 'Plugin name contains invalid characters');
 }
 
 $pinst = read_var('c_plugin_instance', $_GET, '');
 if (! is_string($pinst)) {
     return error400($host . '/' . $plugin . '-?/?', 'Plugin instance name must be a string');
+} elseif (strlen($pinst) > 0 && ! preg_match(REGEXP_PLUGIN, $pinst)) {
+    return error400($host . '/' . $plugin . '-?/?', 'Plugin instance name contains invalid characters');
 }
 
 $type = read_var('c_type', $_GET, '');
@@ -162,9 +166,14 @@ if (is_null($type)) {
     return error400($host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/?', 'Type name must be a string');
 } elseif (strlen($type) == 0) {
     return error400($host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/?', 'Type name may not be blank');
+} elseif (! preg_match(REGEXP_PLUGIN, $type)) {
+    return error400($host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/?', 'Type name contains invalid characters');
 }
 
 $tinst = read_var('c_type_instance', $_GET, '');
+if (strlen((string) $tinst) > 0 && ! preg_match(REGEXP_PLUGIN, (string) $tinst)) {
+    return error400($graph_identifier ?? '?', 'Type instance name contains invalid characters');
+}
 
 $graph_identifier = $host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/' . $type . (strlen((string) $tinst) ? '-' . $tinst : '-*');
 
