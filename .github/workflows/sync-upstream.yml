@@ -1,0 +1,38 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # Daily at 6:17 AM UTC (avoids :00/:30 stampede)
+    - cron: "17 6 * * *"
+  workflow_dispatch: # Manual trigger button in GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream and fetch
+        run: |
+          git remote add upstream https://github.com/librenms/librenms.git
+          git fetch upstream master
+
+      - name: Merge upstream (fast-forward when possible)
+        run: |
+          git merge upstream/master --no-edit
+          # If merge conflicts occur, the step fails and you get a GitHub notification
+
+      - name: Push
+        run: git push origin HEAD
