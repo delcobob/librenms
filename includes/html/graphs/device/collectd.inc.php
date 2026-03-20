@@ -172,7 +172,7 @@ if (is_null($type)) {
 
 $tinst = read_var('c_type_instance', $_GET, '');
 if (strlen((string) $tinst) > 0 && ! preg_match(REGEXP_PLUGIN, (string) $tinst)) {
-    return error400($graph_identifier ?? '?', 'Type instance name contains invalid characters');
+    return error400($host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/' . $type . '-?', 'Type instance name contains invalid characters');
 }
 
 $graph_identifier = $host . '/' . $plugin . (strlen($pinst) ? '-' . $pinst : '') . '/' . $type . (strlen((string) $tinst) ? '-' . $tinst : '-*');

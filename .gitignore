@@ -48,3 +48,8 @@ pyvenv.cfg
 
 /.phpunit.cache/storage/pail
 /.nova
+
+# Local project files — never commit credentials or deployment scripts
+CLAUDE.md
+AUDIT.md
+Deploy-SNMP.ps1

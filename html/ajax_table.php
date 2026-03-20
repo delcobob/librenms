@@ -36,7 +36,7 @@ if (isset($_REQUEST['sort']) && is_array($_REQUEST['sort'])) {
     }
 }
 
-$searchPhrase = $_REQUEST['searchPhrase'];
+$searchPhrase = trim((string) ($_REQUEST['searchPhrase'] ?? ''));
 $id = basename((string) $_REQUEST['id']);
 $response = [];
 

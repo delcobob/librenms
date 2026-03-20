@@ -80,7 +80,9 @@ if (isset($_POST['page_num']) && $_POST['page_num'] > 0 && $_POST['page_num'] <=
 }
 
 $start = (($page_num - 1) * $rows);
-$full_query = "SELECT * $query $where ORDER BY customoid_descr ASC LIMIT $start,$rows";
+$full_query = "SELECT * $query $where ORDER BY customoid_descr ASC LIMIT ?,?";
+$param[] = $start;
+$param[] = $rows;
 
 foreach (dbFetchRows($full_query, $param) as $oid) {
     $oid_id = (int) $oid['customoid_id'];
