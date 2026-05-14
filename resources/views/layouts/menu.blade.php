@@ -306,7 +306,7 @@
                                                             aria-hidden="true"></i> {{ __('All Ports') }}</a></li>
 
                         @if($port_counts['errored'] > 0)
-                            <li><a href="{{ route('ports', ['view' => 'detail', 'errors' => '1']) }}"><i class="fa fa-exclamation-circle fa-fw fa-lg"
+                            <li><a href="{{ route('ports', ['view' => 'detail', 'filter' => ['errors' => ['eq' => '1']]]) }}"><i class="fa fa-exclamation-circle fa-fw fa-lg"
                                                                            aria-hidden="true"></i> {{ __('Errored :port_count', ['port_count' => $port_counts['errored']]) }}
                                 </a></li>
                         @endif
@@ -387,7 +387,7 @@
                                 <a href="{{ url('port-groups') }}"><i class="fa fa-th fa-fw fa-lg" aria-hidden="true"></i> {{ __('Port Groups') }}</a>
                                 <ul class="dropdown-menu scrollable-menu">
                                 @foreach($port_groups as $group)
-                                    <li><a href="{{ url("ports/group=$group->id") }}" title="{{ $group->desc }}"><i class="fa fa-th fa-fw fa-lg" aria-hidden="true"></i> {{ ucfirst($group->name) }}</a></li>
+                                    <li><a href="{{ route('ports', ['filter' => ['groups.id' => ['eq' => $group->id]]]) }}" title="{{ $group->desc }}"><i class="fa fa-th fa-fw fa-lg" aria-hidden="true"></i> {{ ucfirst($group->name) }}</a></li>
                                 @endforeach
                                 </ul>
                                 </li>
