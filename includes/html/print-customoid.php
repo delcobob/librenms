@@ -19,11 +19,11 @@ $no_refresh = true;
 <?php
 
 echo csrf_field();
-if (isset($_POST['num_of_rows']) && $_POST['num_of_rows'] > 0) {
-    $rows = (int) $_POST['rows'];
-} else {
+$rows = (int) ($_POST['num_of_rows'] ?? 10);
+if (! in_array($rows, [10, 25, 50, 100], true)) {
     $rows = 10;
 }
+
 ?>
 
 <div class="table-responsive">
@@ -86,13 +86,10 @@ if (isset($_POST['page_num']) && $_POST['page_num'] > 0 && $_POST['page_num'] <=
 }
 
 $start = (($page_num - 1) * $rows);
-$full_query = "SELECT * $query $where ORDER BY customoid_descr ASC LIMIT ?,?";
-$param[] = $start;
-$param[] = $rows;
+$full_query = "SELECT * $query $where ORDER BY customoid_descr ASC LIMIT $start,$rows";
 
 foreach (dbFetchRows($full_query, $param) as $oid) {
-    $oid_id = (int) $oid['customoid_id'];
-    echo "<tr class='" . $oid_id . "' id='row_" . $oid_id . "'>";
+    echo "<tr class='" . $oid['customoid_id'] . "' id='row_" . $oid['customoid_id'] . "'>";
     echo '<td>' . htmlentities((string) $oid['customoid_descr']) . '</td>';
     echo '<td>' . htmlentities((string) $oid['customoid_oid']) . '</td>';
     echo '<td>' . htmlentities((string) $oid['customoid_current']) . '</td>';
@@ -101,12 +98,12 @@ foreach (dbFetchRows($full_query, $param) as $oid) {
     echo '<td>' . htmlentities((string) $oid['customoid_limit_low']) . '</td>';
     echo '<td>' . htmlentities((string) $oid['customoid_limit_warn']) . '</td>';
     echo '<td>' . htmlentities((string) $oid['customoid_limit_low_warn']) . '</td>';
-    echo "<td><input id='" . $oid_id . "' type='checkbox' name='alert'" . ($oid['customoid_alert'] ? ' checked' : '') . ' disabled></td>';
-    echo "<td><input id='" . $oid_id . "' type='checkbox' name='passed'" . ($oid['customoid_passed'] ? ' checked' : '') . ' disabled></td>';
+    echo "<td><input id='" . $oid['customoid_id'] . "' type='checkbox' name='alert'" . ($oid['customoid_alert'] ? ' checked' : '') . ' disabled></td>';
+    echo "<td><input id='" . $oid['customoid_id'] . "' type='checkbox' name='passed'" . ($oid['customoid_passed'] ? ' checked' : '') . ' disabled></td>';
     echo '<td>';
     echo "<div class='btn-group btn-group-sm' role='group'>";
-    echo "<button type='button' class='btn btn-primary' data-toggle='modal' data-target='#create-oid-form' data-customoid_id='" . $oid_id . "' name='edit-oid' data-content='' data-container='body'" . (Gate::allows('customoid.update') ? '' : ' disabled') . "><i class='fa fa-lg fa-pencil' aria-hidden='true'></i></button>";
-    echo "<button type='button' class='btn btn-danger' aria-label='Delete' data-toggle='modal' data-target='#delete-oid-form' data-customoid_id='" . $oid_id . "' name='delete-oid' data-content='' data-container='body'><i class='fa fa-lg fa-trash' aria-hidden='true'" . (Gate::allows('customoid.delete') ? '' : ' disabled') . '></i></button>';
+    echo "<button type='button' class='btn btn-primary' data-toggle='modal' data-target='#create-oid-form' data-customoid_id='" . $oid['customoid_id'] . "' name='edit-oid' data-content='' data-container='body'" . (Gate::allows('customoid.update') ? '' : ' disabled') . "><i class='fa fa-lg fa-pencil' aria-hidden='true'></i></button>";
+    echo "<button type='button' class='btn btn-danger' aria-label='Delete' data-toggle='modal' data-target='#delete-oid-form' data-customoid_id='" . $oid['customoid_id'] . "' name='delete-oid' data-content='' data-container='body'><i class='fa fa-lg fa-trash' aria-hidden='true'" . (Gate::allows('customoid.delete') ? '' : ' disabled') . '></i></button>';
     echo '</div>';
     echo '</td>';
     echo "</tr>\r\n";
